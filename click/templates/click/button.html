@@ -1,0 +1,17 @@
+<!-- templates/button.html -->
+{% extends "base.html" %}
+{% block title %}Button{% endblock %}
+
+{% block content %}
+{% if user.is_authenticated %}
+{{ counter.count }}
+<form method="post" action="{% url 'click' %}">
+  {% csrf_token %}
+  <button type="submit">Click</button>
+</form>
+<p>Global count: {{ sum_counters }}</p>
+{% else %}
+<p>You are not logged in</p>
+<a href="{% url 'login' %}">Log In</a>
+{% endif %}
+{% endblock %}

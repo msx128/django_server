@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgres:latest
+    container_name: py_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+
+  redis:
+    image: redis:latest
+    container_name: py_redis
+    ports:
+      - "${REDIS_PORT}:6379"
+
+  rabbitmq:
+    image: rabbitmq:latest
+    container_name: py_rabbitmq
+    ports:
+      - "${RABBITMQ_PORT}:5672"
+      - "15672:15672"
+
+volumes:
+  postgres_data:

@@ -23,7 +23,7 @@ def index(request):
 def click(request):
     counter, created = Counter.objects.get_or_create(user=request.user)
     if request.method == "POST":
-        counter.count = F("count") + 1 # Counter.objects.filter(pk=1).update(count=F("count") + 1)
-        counter.save()                 # idk if it would work the same way
+        counter.count = F("count") + 1 
+        counter.save()                 
         counter.refresh_from_db()
         return HttpResponseRedirect(reverse("button"))

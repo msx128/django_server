@@ -1,64 +1,51 @@
-from rest_framework import status
+from rest_framework import generics
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework.parsers import JSONParser
+from rest_framework.reverse import reverse
+from rest_framework import viewsets
+from django.contrib.auth.models import User
 from todo.models import Todo, TodoList
-from todo.serializers import TodoListSerializer, TodoSerializer
-# Create your views here.def todo_list(request):
+from todo.serializers import TodoListSerializer, TodoSerializer, UserSerializer
+from todo.permissions import IsOwnerOrReadOnlyForTodoDetails, IsOwnerOrReadOnly
 
-@api_view(["GET", "POST"])
-def todolist_list(request, format=None):
-    if request.method == "GET":
-        todolist, _created = TodoList.objects.get_or_create(user=request.user)
-        serializer = TodoListSerializer(todolist)
-        return Response(serializer.data)
+@api_view(["GET"])
+def api_root(request, format=None):
+    return Response(
+        {
+            "users": reverse("user-list", request=request, format=format),
+            "todolists": reverse("todolist", request=request, format=format),
+        }
+    )
 
-    elif request.method == "POST": 
-        data = JSONParser().parse(request)
-        data['user'] = request.user.id # can't just do TodoListSerializer(data=request.data)
+class TodoListView(generics.RetrieveUpdateAPIView):
+    serializer_class = TodoListSerializer
+    permission_classes = [IsOwnerOrReadOnly]
 
-        todolist, created = TodoList.objects.get_or_create(user=request.user)
-        serializer = TodoListSerializer(todolist, data=data, partial=True)
+    def get_object(self):
+        todolist, _created = TodoList.objects.get_or_create(user=self.request.user)
+        return todolist
 
-        if serializer.is_valid():
-            serializer.save()
-            c_status = status.HTTP_201_CREATED if created else status.HTTP_200_OK
-            return Response(serializer.data, status=c_status)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-         
-@api_view(["GET", "POST"])
-def todo_list(request, format=None): 
-    todolist, _created = TodoList.objects.get_or_create(user=request.user)
-    if request.method == "GET": 
-        todos = Todo.objects.filter(todo_list=todolist)
-        serializer = TodoSerializer(todos, many=True)
-        return Response(serializer.data)
+class TodoView(generics.ListCreateAPIView):
+    serializer_class = TodoSerializer
+    permission_classes = [IsOwnerOrReadOnly]
 
-    elif request.method == "POST": 
-        serializer = TodoSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(todo_list=todolist)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def get_queryset(self):
+        todolist, _created = TodoList.objects.get_or_create(user=self.request.user)
+        return Todo.objects.filter(todo_list=todolist) # get_or_create for occasion when user trying to see all todos without getting TodoList in the first place
+                                                       # maybe we can visit todolistview before todoview, with like redirect or something but it seems like extra work
 
-@api_view(["GET", "PUT", "DELETE"])
-def todo_detail(request, pk, format=None):
-    try:
-        todo = Todo.objects.get(pk=pk)
-    except Todo.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+    def perform_create(self, serializer):
+        todolist, _created = TodoList.objects.get_or_create(user=self.request.user)
+        serializer.save(todo_list=todolist)
 
-    if request.method == "GET":
-        serializer = TodoSerializer(todo)
-        return Response(serializer.data)
+class TodoDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsOwnerOrReadOnlyForTodoDetails]
+    serializer_class = TodoSerializer 
+    queryset = Todo.objects.all()
 
-    elif request.method == "PUT":
-        serializer = TodoSerializer(todo, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class UserViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
 
-    elif request.method == "DELETE":
-        todo.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+
+# there can be ViewSet rewrite on all others classes but I don't think it will be better, especially considering get_or_create difficulty

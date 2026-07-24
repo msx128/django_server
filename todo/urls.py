@@ -1,11 +1,18 @@
-from django.urls import path
+from django.urls import include, path
 from rest_framework.urlpatterns import format_suffix_patterns
+from rest_framework.routers import DefaultRouter
 from todo import views
 
-urlpatterns = [
-    path("", views.todolist_list, name="todolist"),
-    path("td", views.todo_list, name="skrr"),
-    path("<int:pk>", views.todo_detail, name="detail"),
-]
 
-urlpatterns = format_suffix_patterns(urlpatterns)
+router = DefaultRouter()
+router.register(r"users", views.UserViewSet, basename="user")
+
+urlpatterns = format_suffix_patterns([
+    path("", views.api_root, name="root"),
+    path("tdlst", views.TodoListView.as_view(), name="todolist"),
+    path("td", views.TodoView.as_view(), name="tdl"),
+    path("<int:pk>", views.TodoDetailView.as_view(), name="tododetail"),
+])
+urlpatterns += [
+    path("", include(router.urls)),
+]

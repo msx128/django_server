@@ -19,3 +19,6 @@ class Todo(models.Model):
 
     class Meta:
         ordering = ["created"]
+
+    def __str__(self):
+        return str(self.id)
